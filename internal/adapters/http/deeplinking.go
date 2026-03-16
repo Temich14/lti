@@ -208,6 +208,8 @@ func (h *DeepLinkingHandler) GetAvailableContent(c *gin.Context) {
 		return
 	}
 
+	println(content)
+
 	c.JSON(http.StatusOK, gin.H{
 		"content": content,
 		"settings": gin.H{
