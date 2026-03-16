@@ -86,7 +86,13 @@ func (s *LTIService) prepareToolRegistrationRequest() *domain.ToolRegistrationRe
 		GrantTypes:              []string{"implicit, client_credentials"},
 		RedirectUris:            []string{s.cfg.OAuthConfig.RedirectURI},
 		ClientName:              s.cfg.LTIConfig.ToolName,
-		Scope:                   "https://purl.imsglobal.org/spec/lti-ags/scope/score",
+		Scope:                   Scope: strings.Join([]string{
+            "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
+            "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
+            "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
+            "https://purl.imsglobal.org/spec/lti-ags/scope/score",
+            "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly",
+        }, " "),,
 		ToolConfiguration: domain.ToolConfiguration{
 			Domain: s.cfg.LTIConfig.Domain,
 		},

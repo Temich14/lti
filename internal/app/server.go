@@ -21,6 +21,10 @@ func NewServer(api *gin.Engine, authHandler *http.AuthAdapter, launchHandler *ht
 func (s *Server) RegisterRoutes() {
 	group := s.api.Group("/lti")
 
+	dlGroup := group.Group("/deeplink")
+	dlGroup.Get("/lti/deeplink/select", dlHandler.ShowContentSelection)
+    dlGroup.Post("/lti/deeplink/return", dlHandler.ReturnContent)
+	
 	agsGroup := group.Group("/ags")
 	agsGroup.GET("/lineitems", s.agsHandler.GetScore)
 	agsGroup.POST("/lineitems", s.agsHandler.PostScore)

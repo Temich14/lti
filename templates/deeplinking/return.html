@@ -1,0 +1,26 @@
+<!-- templates/deeplink/return.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Returning to Platform</title>
+    <script>
+        // Автоматически отправляем форму при загрузке страницы
+        window.onload = function() {
+            document.getElementById('returnForm').submit();
+        };
+    </script>
+</head>
+<body>
+    <div class="loading">
+        <p>Returning to learning platform...</p>
+        <div class="spinner"></div>
+    </div>
+
+    <form id="returnForm" method="post" action="{{ .returnUrl }}">
+        <input type="hidden" name="JWT" value="{{ .jwt }}">
+        {{ if .error }}
+        <input type="hidden" name="error" value="{{ .error }}">
+        {{ end }}
+    </form>
+</body>
+</html>
