@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strings"
 )
 
 type DeepLinkingHandler struct {
@@ -161,7 +162,18 @@ func (h *DeepLinkingHandler) ReturnContent(c *gin.Context) {
 	h.srv.DeleteDeepLinkingSession(c.Request.Context(), sessionID)
 	c.SetCookie("dl_session", "", -1, "/", "", false, true)
 
-	// Возвращаем HTML с формой для отправки JWT обратно в платформу
+	// Если запрос пришёл как JSON (AJAX из select.html) — возвращаем JSON.
+	accept := c.GetHeader("Accept")
+	contentType := c.GetHeader("Content-Type")
+	if strings.Contains(contentType, "application/json") || strings.Contains(accept, "application/json") {
+		c.JSON(http.StatusOK, gin.H{
+			"jwt":       jwtResponse,
+			"returnUrl": session.Settings.DeepLinkReturnURL,
+		})
+		return
+	}
+
+	// Иначе — HTML с формой для отправки JWT обратно в платформу
 	c.HTML(http.StatusOK, "deeplink/return.html", gin.H{
 		"returnUrl": session.Settings.DeepLinkReturnURL,
 		"jwt":       jwtResponse,
@@ -207,8 +219,6 @@ func (h *DeepLinkingHandler) GetAvailableContent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	println(content)
 
 	c.JSON(http.StatusOK, gin.H{
 		"content": content,

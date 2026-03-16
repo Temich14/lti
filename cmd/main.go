@@ -57,6 +57,7 @@ func main() {
 
 	ginEntry := rkgin.GetGinEntry("lti-core")
 	ginEntry.Router.LoadHTMLGlob("templates/**/*")
+	ginEntry.Router.Static("/static", "./static")
 	err = mtrcs.Register(ginEntry.PromEntry.Registerer)
 	if err != nil {
 		log.Fatal("failed to register custom metrics:", err)
@@ -75,7 +76,7 @@ func main() {
 	dlService := service.NewDeepLinkingService(ltiService, cfg)
 
 	authAdapter := http.NewAuthAdapter(ltiService)
-	launchAdapter := http.NewLaunchAdapter(ltiService)
+	launchAdapter := http.NewLaunchAdapter(ltiService, dlService)
 	jwkHandler := http.NewJWKSHandler(jwkservice)
 	agsHandler := http.NewAGSHandler(agsService)
 	dlHandler := http.NewDeepLinkingHandler(dlService)

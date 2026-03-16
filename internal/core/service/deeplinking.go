@@ -170,80 +170,33 @@ func (s *DeepLinkingService) DeleteDeepLinkingSession(ctx context.Context, sessi
 
 func (s *DeepLinkingService) GetAvailableContent(ctx context.Context, contextID string, acceptTypes []string) ([]domain.ContentItem, error) {
 	s.log.Info("deeplink.get_available_content.start", "context_id", contextID, "accept_types_count", len(acceptTypes))
-	// TODO: wire real content source (DB/registry). For now, return empty list.
-	s.log.Info("deeplink.get_available_content.ok", "context_id", contextID, "count", 0)
-	return []domain.ContentItem{{
-		Type:  "link",
-		URL:   "https://example.com/vr/lesson1",
-		Title: "VR Lesson 1",
-		Text:  "Introduction to VR training",
-		Icon: &domain.Icon{
-			URL:    "https://example.com/icons/vr.png",
-			Width:  64,
-			Height: 64,
-		},
-		Custom: map[string]interface{}{
-			"lesson_id": "vr-lesson-1",
-		},
-		WindowTarget: "iframe",
-	},
-
+	// TODO: wire real content source (DB/registry). For now, return a small deterministic list.
+	items := []domain.ContentItem{
 		{
-			Type:  "ltiResourceLink",
-			Title: "Fire Safety VR Simulator",
-			Text:  "Complete the fire evacuation training",
-			Icon: &domain.Icon{
-				URL:    "https://example.com/icons/fire.png",
-				Width:  64,
-				Height: 64,
-			},
-			Thumbnail: &domain.Thumbnail{
-				URL:    "https://example.com/thumbs/fire.png",
-				Width:  320,
-				Height: 180,
-			},
-			Custom: map[string]interface{}{
-				"scenario": "fire-evacuation",
-			},
+			Type:         domain.ContentTypeLtiResourceLink,
+			URL:          s.cfg.LTIConfig.Domain + "/lti/launch",
+			Title:        "Demo LTI Resource",
+			Text:         "Example resource for deep linking",
+			WindowTarget: "iframe",
 			IFrame: &domain.IFrame{
+				Src:    s.cfg.LTIConfig.Domain + "/lti/launch",
 				Width:  1024,
 				Height: 768,
 			},
-			LineItem: &domain.LineItem{
-				Label:     "Fire Safety Training",
-				MaxScore:  100,
-				ContextID: "fire-training-1",
+			Custom: map[string]interface{}{
+				"context_id": contextID,
 			},
 		},
-
 		{
-			Type:  "html",
-			Title: "Instructions",
-			Text:  "<p>Please complete the VR training before the deadline.</p>",
+			Type:  domain.ContentTypeLink,
+			URL:   s.cfg.LTIConfig.Domain,
+			Title: "Tool Home",
+			Text:  "Open tool homepage",
 		},
+	}
 
-		{
-			Type:  "image",
-			URL:   "https://example.com/images/vr-lab.png",
-			Title: "VR Laboratory",
-			Text:  "Virtual training environment preview",
-		},
-
-		{
-			Type:  "file",
-			URL:   "https://example.com/files/manual.pdf",
-			Title: "VR Training Manual",
-			Text:  "Download the training instructions",
-		},
-
-		{
-			Type:       "link",
-			URL:        "https://example.com/quiz",
-			Title:      "Post Training Quiz",
-			Text:       "Test your knowledge after completing the VR module",
-			Submission: &domain.Submission{},
-			Available:  &domain.Availability{},
-		}}, nil
+	s.log.Info("deeplink.get_available_content.ok", "context_id", contextID, "count", len(items))
+	return items, nil
 }
 
 func (s *DeepLinkingService) CreateLineItem(ctx context.Context, lineItem *domain.LineItem) error {
