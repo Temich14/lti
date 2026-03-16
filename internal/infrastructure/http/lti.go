@@ -11,7 +11,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 )
@@ -29,7 +28,10 @@ func NewLtiClient(log *slog.Logger) *LTIClient {
 }
 
 func (c *LTIClient) GetOpenidConfiguration(openidUrl string) (*domain.OpenidConfiguration, error) {
-	req := httptest.NewRequest("GET", openidUrl, nil)
+	req, err := http.NewRequest("GET", openidUrl, nil)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := doRequestWithRetry(c.client, req, 3)
 	if err != nil {
 		return nil, err

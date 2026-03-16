@@ -1,9 +1,8 @@
 package domain
 
 import (
-	"time"
-
 	"github.com/golang-jwt/jwt/v4"
+	"time"
 )
 
 type DeepLinkingRequest struct {
@@ -185,7 +184,10 @@ type RegistrationResponse struct {
 }
 
 type LoginRequest struct {
-	Iss             string `json:"iss" form:"iss"`
+	Iss string `json:"iss" form:"iss"`
+	// TargetLinkURI is the LTI 1.3 OIDC login initiation parameter.
+	TargetLinkURI string `json:"target_link_uri" form:"target_link_uri"`
+	// TargetLingUri kept for backward compatibility with earlier typo.
 	TargetLingUri   string `json:"target_ling_uri" form:"target_ling_uri"`
 	LoginHint       int    `json:"login_hint" form:"login_hint"`
 	LTIMessageHint  int    `json:"lti_message_hint" form:"lti_message_hint"`

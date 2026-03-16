@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -13,19 +14,25 @@ import (
 )
 
 func (s *LTIService) Register(ctx context.Context, openidUrl, registrationToken string) error {
+	s.log.Info("lti.register.start", "openid_configuration", openidUrl)
 	configuration, err := s.ltiClient.GetOpenidConfiguration(openidUrl)
 	if err != nil {
+		s.log.Error("lti.register.get_openid_configuration.failed", "err", err)
 		return err
 	}
 	registrationBody := s.prepareToolRegistrationRequest()
 
 	toolCfg, err := s.ltiClient.SendRegistrationRequest(configuration.RegistrationEndpoint, registrationToken, registrationBody)
 	if err != nil {
+		s.log.Error("lti.register.send_registration_request.failed", "err", err)
 		return err
 	}
 
-	str, err := json.Marshal(*toolCfg)
-	println(string(str))
+	if s.log.Enabled(ctx, slog.LevelDebug) {
+		if b, err := json.Marshal(*toolCfg); err == nil {
+			s.log.Debug("lti.register.platform_response", "body", string(b))
+		}
+	}
 
 	platform := &domain.Platform{
 		ClientID:        toolCfg.ClientId,
@@ -39,14 +46,18 @@ func (s *LTIService) Register(ctx context.Context, openidUrl, registrationToken 
 	}
 	_, err = s.platformRepo.Create(ctx, platform)
 	if err != nil {
+		s.log.Error("lti.register.persist_platform.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
 		return err
 	}
+	s.log.Info("lti.register.ok", "issuer", platform.Issuer, "client_id", platform.ClientID)
 	return nil
 }
 
 func (s *LTIService) Login(ctx context.Context, req *domain.LoginRequest) (string, error) {
+	s.log.Info("lti.login.start", "issuer", req.Iss, "client_id", req.ClientID)
 	platform, err := s.platformRepo.GetByIssuerAndClientID(ctx, req.Iss, req.ClientID)
 	if err != nil {
+		s.log.Error("lti.login.platform_lookup.failed", "issuer", req.Iss, "client_id", req.ClientID, "err", err)
 		return "", err
 	}
 
@@ -62,15 +73,18 @@ func (s *LTIService) Login(ctx context.Context, req *domain.LoginRequest) (strin
 
 	err = s.loginSessionRepo.Save(ctx, loginSession)
 	if err != nil {
+		s.log.Error("lti.login.save_session.failed", "issuer", req.Iss, "client_id", req.ClientID, "err", err)
 		return "", err
 	}
 
 	query, err := s.buildAuthURL(platform, req, loginSession)
 
 	if err != nil {
+		s.log.Error("lti.login.build_auth_url.failed", "issuer", req.Iss, "client_id", req.ClientID, "err", err)
 		return "", err
 	}
 
+	s.log.Info("lti.login.ok", "issuer", req.Iss, "client_id", req.ClientID)
 	return query, nil
 }
 

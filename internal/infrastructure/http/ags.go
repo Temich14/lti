@@ -2,19 +2,19 @@ package http
 
 import (
 	"LTICore/internal/core/domain"
-	http "LTICore/internal/infrastructure/http"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 )
 
 type AGSClient struct {
-	client *http.client
+	httpClient *http.Client
 }
 
 func NewAGSClient() *AGSClient {
-	return &AGSClient{client: NewHTTPClient()}
+	return &AGSClient{httpClient: NewHTTPClient()}
 }
 
 func (c *AGSClient) GetLineItemsFromPlatform(ctx context.Context, agsEndpoint, accessToken string) ([]domain.LineItem, error) {
@@ -44,7 +44,7 @@ func (c *AGSClient) GetLineItemsFromPlatform(ctx context.Context, agsEndpoint, a
 	return items, nil
 }
 
-func (c *Client) SendScoreToPlatform(ctx context.Context, lineItemURL, accessToken string, score *domain.Score) error {
+func (c *AGSClient) SendScoreToPlatform(ctx context.Context, lineItemURL, accessToken string, score *domain.Score) error {
 	body, err := json.Marshal(score)
 	if err != nil {
 		return err

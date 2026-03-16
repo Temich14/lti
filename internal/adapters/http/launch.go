@@ -26,6 +26,15 @@ func (l *LaunchAdapter) Launch(c *gin.Context) {
 	members, err := l.ltiService.Launch(c.Request.Context(), req.IdToken, req.State)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
-	c.JSON(http.StatusOK, gin.H{"members": members})
+	_ = members
+
+	c.HTML(http.StatusOK, "deeplinking/select.html", gin.H{
+		"title":          "Select content to deeplink",
+		"text":           "Choose content items to return to the platform.",
+		"acceptMultiple": true,
+		"acceptTypes":    []string{"ltiResourceLink"},
+		"returnUrl":      c.Query("return_url"),
+	})
 }

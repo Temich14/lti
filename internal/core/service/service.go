@@ -5,6 +5,7 @@ import (
 	"LTICore/internal/core/domain"
 	"context"
 	"crypto/rsa"
+	"log/slog"
 	"time"
 )
 
@@ -27,13 +28,24 @@ type LTIService struct {
 	loginSessionRepo LoginSessionRepository
 	metrics          LTIMetrics
 	cfg              *config.Config
+	log              *slog.Logger
 	PrivateKey       *rsa.PrivateKey
 	PrivateKeyID     string
 }
 
 func NewLtiService(client LTIClient, nrpsClient NRPSClient, platformRepo PlatformRepo, repository LoginSessionRepository, privateKey *rsa.PrivateKey, cfg *config.Config, metrics LTIMetrics) *LTIService {
 
-	return &LTIService{ltiClient: client, nrpsClient: nrpsClient, platformRepo: platformRepo, loginSessionRepo: repository, PrivateKey: privateKey, PrivateKeyID: cfg.OAuthConfig.KeyID, cfg: cfg, metrics: metrics}
+	return &LTIService{
+		ltiClient:        client,
+		nrpsClient:       nrpsClient,
+		platformRepo:     platformRepo,
+		loginSessionRepo: repository,
+		PrivateKey:       privateKey,
+		PrivateKeyID:     cfg.OAuthConfig.KeyID,
+		cfg:              cfg,
+		metrics:          metrics,
+		log:              slog.Default(),
+	}
 }
 
 type AGSRepository interface {

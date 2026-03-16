@@ -7,73 +7,83 @@
     <script src="/static/js/deeplink.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>{{ .title }}</h1>
-        <p>{{ .text }}</p>
-        
-        <div class="content-grid" id="contentGrid">
-            <!-- Контент будет загружен через API -->
-        </div>
+<div class="container">
+    <h1>{{ .title }}</h1>
+    <p>{{ .text }}</p>
 
-        <div class="selection-actions">
-            <button onclick="submitSelection()" class="btn btn-primary">
-                Return Selection
-            </button>
-            <button onclick="cancelSelection()" class="btn btn-secondary">
-                Cancel
-            </button>
-        </div>
-
-        <form id="returnForm" method="post" action="/lti/deeplink/return" style="display:none;">
-            <input type="hidden" name="items" id="selectedItems">
-        </form>
+    <div class="content-grid" id="contentGrid">
+        <!-- Контент будет загружен через API -->
     </div>
 
-    <script>
-        const settings = {
-            acceptMultiple: {{ .acceptMultiple }},
-            acceptTypes: {{ .acceptTypes | json }},
-            returnUrl: "{{ .returnUrl }}"
-        };
+    <div class="selection-actions">
+        <button onclick="submitSelection()" class="btn btn-primary">
+            Return Selection
+        </button>
+        <button onclick="cancelSelection()" class="btn btn-secondary">
+            Cancel
+        </button>
+    </div>
 
-        loadAvailableContent();
+    <form id="returnForm" method="post" action="/lti/deeplink/return" style="display:none;">
+        <input type="hidden" name="items" id="selectedItems">
+    </form>
+</div>
 
-        function loadAvailableContent() {
-            fetch('/api/deeplink/content?session_id=' + getSessionId())
-                .then(response => response.json())
-                .then(data => renderContentGrid(data.content));
+<script>
+    const settings = {
+        acceptMultiple: {
+    { .
+        acceptMultiple
+    }
+    },
+    acceptTypes: {
+        { .
+            acceptTypes | json
+        }
+    }
+    ,
+    returnUrl: "{{ .returnUrl }}"
+    }
+    ;
+
+    loadAvailableContent();
+
+    function loadAvailableContent() {
+        fetch('/lti/deeplink/content?session_id=' + getSessionId())
+            .then(response => response.json())
+            .then(data => renderContentGrid(data.content));
+    }
+
+    function renderContentGrid(content) {
+        const grid = document.getElementById('contentGrid');
+        grid.innerHTML = '';
+
+        content.forEach(item => {
+            const card = createContentCard(item);
+            card.onclick = () => toggleSelection(item.id);
+            grid.appendChild(card);
+        });
+    }
+
+    function toggleSelection(contentId) {
+        // Логика выбора контента
+    }
+
+    function submitSelection() {
+        const selectedItems = getSelectedItems();
+
+        if (!settings.acceptMultiple && selectedItems.length > 1) {
+            alert('Multiple selection not allowed');
+            return;
         }
 
-        function renderContentGrid(content) {
-            const grid = document.getElementById('contentGrid');
-            grid.innerHTML = '';
-            
-            content.forEach(item => {
-                const card = createContentCard(item);
-                card.onclick = () => toggleSelection(item.id);
-                grid.appendChild(card);
-            });
-        }
-
-        function toggleSelection(contentId) {
-            // Логика выбора контента
-        }
-
-        function submitSelection() {
-            const selectedItems = getSelectedItems();
-            
-            if (!settings.acceptMultiple && selectedItems.length > 1) {
-                alert('Multiple selection not allowed');
-                return;
-            }
-
-            fetch('/lti/deeplink/return', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ items: selectedItems })
-            })
+        fetch('/lti/deeplink/return', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({items: selectedItems})
+        })
             .then(response => response.json())
             .then(data => {
                 // Отправляем JWT обратно в платформу
@@ -84,12 +94,12 @@
                 document.body.appendChild(form);
                 form.submit();
             });
-        }
+    }
 
-        function cancelSelection() {
-            window.location.href = '/lti/deeplink/cancel?return_url=' + 
-                encodeURIComponent(settings.returnUrl);
-        }
-    </script>
+    function cancelSelection() {
+        window.location.href = '/lti/deeplink/cancel?return_url=' +
+            encodeURIComponent(settings.returnUrl);
+    }
+</script>
 </body>
 </html>

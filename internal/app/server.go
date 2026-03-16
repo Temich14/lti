@@ -2,7 +2,6 @@ package app
 
 import (
 	"LTICore/internal/adapters/http"
-	"fmt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,22 +11,34 @@ type Server struct {
 	launchHandler *http.LaunchAdapter
 	jwksHandler   *http.JWKSHandler
 	agsHandler    *http.AGSHandler
+	dlHandler     *http.DeepLinkingHandler
 }
 
-func NewServer(api *gin.Engine, authHandler *http.AuthAdapter, launchHandler *http.LaunchAdapter, jwkHandler *http.JWKSHandler, agsHandler *http.AGSHandler) *Server {
-	return &Server{api: api, authHandler: authHandler, launchHandler: launchHandler, jwksHandler: jwkHandler, agsHandler: agsHandler}
+func NewServer(api *gin.Engine, authHandler *http.AuthAdapter, launchHandler *http.LaunchAdapter, jwkHandler *http.JWKSHandler, agsHandler *http.AGSHandler, dlHandler *http.DeepLinkingHandler) *Server {
+	return &Server{
+		api:           api,
+		authHandler:   authHandler,
+		launchHandler: launchHandler,
+		jwksHandler:   jwkHandler,
+		agsHandler:    agsHandler,
+		dlHandler:     dlHandler,
+	}
 }
 
 func (s *Server) RegisterRoutes() {
 	group := s.api.Group("/lti")
 
 	dlGroup := group.Group("/deeplink")
-	dlGroup.Get("/lti/deeplink/select", dlHandler.ShowContentSelection)
-    dlGroup.Post("/lti/deeplink/return", dlHandler.ReturnContent)
-	
+	dlGroup.POST("/select", s.dlHandler.ShowContentSelection)
+	dlGroup.POST("/return", s.dlHandler.ReturnContent)
+	dlGroup.POST("/api/return", s.dlHandler.APIReturnContent)
+	dlGroup.GET("/content", s.dlHandler.GetAvailableContent)
+	dlGroup.POST("/lineitem", s.dlHandler.CreateLineItemFromSelection)
+	dlGroup.GET("/cancel", s.dlHandler.CancelDeepLinking)
+
 	agsGroup := group.Group("/ags")
-	agsGroup.GET("/lineitems", s.agsHandler.GetScore)
-	agsGroup.POST("/lineitems", s.agsHandler.PostScore)
+	agsGroup.GET("/lineitems", s.agsHandler.GetLineItems)
+	agsGroup.POST("/lineitems", s.agsHandler.CreateLineItem)
 	agsGroup.GET("/score", s.agsHandler.GetScore)
 	agsGroup.POST("/score", s.agsHandler.PostScore)
 
@@ -40,7 +51,5 @@ func (s *Server) RegisterRoutes() {
 	authGroup.GET("/register", s.authHandler.Register)
 	authGroup.POST("/login", s.authHandler.Login)
 
-	for _, route := range s.api.Routes() {
-		fmt.Printf("Route: %s %s\n", route.Method, route.Path)
-	}
+	_ = s.api.Routes()
 }

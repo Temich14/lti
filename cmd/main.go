@@ -10,13 +10,10 @@ import (
 	"LTICore/internal/infrastructure/metrics"
 	"LTICore/internal/infrastructure/repo"
 	"context"
-	_ "fmt"
-	_ "github.com/gin-gonic/gin"
 	"github.com/rookie-ninja/rk-boot/v2"
 	rkgin "github.com/rookie-ninja/rk-gin/v2/boot"
 	"log"
 	"log/slog"
-	_ "net/http"
 	"os"
 )
 
@@ -59,6 +56,7 @@ func main() {
 	}
 
 	ginEntry := rkgin.GetGinEntry("lti-core")
+	ginEntry.Router.LoadHTMLGlob("templates/**/*")
 	err = mtrcs.Register(ginEntry.PromEntry.Registerer)
 	if err != nil {
 		log.Fatal("failed to register custom metrics:", err)
@@ -71,13 +69,18 @@ func main() {
 	ltiClient := http2.NewLtiClient(logger)
 
 	jwkservice := service.NewJwksService(cfg, jwkPK)
-	agsService := service.NewAGSService(, mtrcs)
+	agsRepo := repo.NewMockAgsRepo()
+	agsService := service.NewAGSService(agsRepo, mtrcs)
 	ltiService := service.NewLtiService(ltiClient, nrpsClient, platformRepo, loginSessionRepo, jwkPK, cfg, mtrcs)
+	dlService := service.NewDeepLinkingService(ltiService, cfg)
+
 	authAdapter := http.NewAuthAdapter(ltiService)
 	launchAdapter := http.NewLaunchAdapter(ltiService)
 	jwkHandler := http.NewJWKSHandler(jwkservice)
-	agsHandler := http.NewAGSHandler()
-	server := app.NewServer(ginEntry.Router, authAdapter, launchAdapter, jwkHandler)
+	agsHandler := http.NewAGSHandler(agsService)
+	dlHandler := http.NewDeepLinkingHandler(dlService)
+
+	server := app.NewServer(ginEntry.Router, authAdapter, launchAdapter, jwkHandler, agsHandler, dlHandler)
 	server.RegisterRoutes()
 
 	boot.WaitForShutdownSig(ctx)
