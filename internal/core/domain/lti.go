@@ -1,77 +1,84 @@
 package domain
 
 import (
-	"github.com/golang-jwt/jwt/v4"
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type DeepLinkingRequest struct {
-    DeepLinkingSettings DeepLinkingSettings `json:"https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings"`
-    DeploymentID        string              `json:"https://purl.imsglobal.org/spec/lti/claim/deployment_id"`
-    MessageType         string              `json:"https://purl.imsglobal.org/spec/lti/claim/message_type"`
-    Version             string              `json:"https://purl.imsglobal.org/spec/lti/claim/version"`
-    Roles               []string            `json:"https://purl.imsglobal.org/spec/lti/claim/roles"`
-    Context             *LTIContext         `json:"https://purl.imsglobal.org/spec/lti/claim/context,omitempty"`
-    Custom              map[string]interface{} `json:"https://purl.imsglobal.org/spec/lti/claim/custom,omitempty"`
+	DeepLinkingSettings DeepLinkingSettings    `json:"https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings"`
+	DeploymentID        string                 `json:"https://purl.imsglobal.org/spec/lti/claim/deployment_id"`
+	MessageType         string                 `json:"https://purl.imsglobal.org/spec/lti/claim/message_type"`
+	Version             string                 `json:"https://purl.imsglobal.org/spec/lti/claim/version"`
+	Roles               []string               `json:"https://purl.imsglobal.org/spec/lti/claim/roles"`
+	Context             *LTIContext            `json:"https://purl.imsglobal.org/spec/lti/claim/context,omitempty"`
+	Custom              map[string]interface{} `json:"https://purl.imsglobal.org/spec/lti/claim/custom,omitempty"`
 }
 
 type DeepLinkingSettings struct {
-    AcceptTypes        []string               `json:"accept_types"`
-    AcceptMediaTypes   []string               `json:"accept_media_types"`
-    AcceptPresentationDocumentTargets []string `json:"accept_presentation_document_targets"`
-    AcceptMultiple     bool                   `json:"accept_multiple"`
-    AutoCreate         bool                   `json:"auto_create"`
-    Title              string                  `json:"title,omitempty"`
-    Text               string                  `json:"text,omitempty"`
-    Data               string                  `json:"data,omitempty"`
-    DeepLinkReturnURL  string                  `json:"deep_link_return_url"`
+	AcceptTypes                       []string `json:"accept_types"`
+	AcceptMediaTypes                  []string `json:"accept_media_types"`
+	AcceptPresentationDocumentTargets []string `json:"accept_presentation_document_targets"`
+	AcceptMultiple                    bool     `json:"accept_multiple"`
+	AutoCreate                        bool     `json:"auto_create"`
+	Title                             string   `json:"title,omitempty"`
+	Text                              string   `json:"text,omitempty"`
+	Data                              string   `json:"data,omitempty"`
+	DeepLinkReturnURL                 string   `json:"deep_link_return_url"`
 }
 
 type DeepLinkResponse struct {
-    JWT string `json:"jwt"`
+	JWT string `json:"jwt"`
 }
 
+type LTIContext struct {
+	ID    string   `json:"id"`
+	Type  []string `json:"type"`
+	Title string   `json:"title"`
+	Label string   `json:"label"`
+}
 type ContentItem struct {
-    Type                    string      `json:"type"`
-    URL                     string      `json:"url,omitempty"`
-    Title                   string      `json:"title,omitempty"`
-    Text                    string      `json:"text,omitempty"`
-    Icon                    *Icon       `json:"icon,omitempty"`
-    Thumbnail               *Thumbnail  `json:"thumbnail,omitempty"`
-    Custom                  map[string]interface{} `json:"custom,omitempty"`
-    WindowTarget            string      `json:"windowTarget,omitempty"`
-    IFrame                  *IFrame     `json:"iframe,omitempty"`
-    LineItem                *LineItem   `json:"lineItem,omitempty"`
-    Available               *Availability `json:"available,omitempty"`
-    Submission              *Submission   `json:"submission,omitempty"`
+	Type         string                 `json:"type"`
+	URL          string                 `json:"url,omitempty"`
+	Title        string                 `json:"title,omitempty"`
+	Text         string                 `json:"text,omitempty"`
+	Icon         *Icon                  `json:"icon,omitempty"`
+	Thumbnail    *Thumbnail             `json:"thumbnail,omitempty"`
+	Custom       map[string]interface{} `json:"custom,omitempty"`
+	WindowTarget string                 `json:"windowTarget,omitempty"`
+	IFrame       *IFrame                `json:"iframe,omitempty"`
+	LineItem     *LineItem              `json:"lineItem,omitempty"`
+	Available    *Availability          `json:"available,omitempty"`
+	Submission   *Submission            `json:"submission,omitempty"`
 }
 
 type Icon struct {
-    URL      string `json:"url"`
-    Width    int    `json:"width,omitempty"`
-    Height   int    `json:"height,omitempty"`
+	URL    string `json:"url"`
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
 }
 
 type Thumbnail struct {
-    URL      string `json:"url"`
-    Width    int    `json:"width,omitempty"`
-    Height   int    `json:"height,omitempty"`
+	URL    string `json:"url"`
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
 }
 
 type IFrame struct {
-    Src      string `json:"src"`
-    Width    int    `json:"width,omitempty"`
-    Height   int    `json:"height,omitempty"`
+	Src    string `json:"src"`
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
 }
 
 type Availability struct {
-    StartAt *time.Time `json:"startAt,omitempty"`
-    EndAt   *time.Time `json:"endAt,omitempty"`
+	StartAt *time.Time `json:"startAt,omitempty"`
+	EndAt   *time.Time `json:"endAt,omitempty"`
 }
 
 type Submission struct {
-    StartAt *time.Time `json:"startAt,omitempty"`
-    EndAt   *time.Time `json:"endAt,omitempty"`
+	StartAt *time.Time `json:"startAt,omitempty"`
+	EndAt   *time.Time `json:"endAt,omitempty"`
 }
 
 type OpenidConfiguration struct {
@@ -137,42 +144,41 @@ type ToolConfiguration struct {
 }
 
 type LTIMessage struct {
-	Type          string `json:"type" form:"type"`
-	TargetLinkUri string `json:"target_link_uri" form:"target_link_uri"`
-	Label         string `json:"label" form:"label"`
-	Placements    []string `json:"placements" form:"placements"`
-	DeepLinkingAcceptTypes    []string `json:"deep_linking_accept_types,omitempty" form:"deep_linking_accept_types"` 
-	DeepLinkingAcceptMediaTypes []string `json:"deep_linking_accept_media_types,omitempty" form:"deep_linking_accept_media_types"`
+	Type                                         string   `json:"type" form:"type"`
+	TargetLinkUri                                string   `json:"target_link_uri" form:"target_link_uri"`
+	Label                                        string   `json:"label" form:"label"`
+	Placements                                   []string `json:"placements" form:"placements"`
+	DeepLinkingAcceptTypes                       []string `json:"deep_linking_accept_types,omitempty" form:"deep_linking_accept_types"`
+	DeepLinkingAcceptMediaTypes                  []string `json:"deep_linking_accept_media_types,omitempty" form:"deep_linking_accept_media_types"`
 	DeepLinkingAcceptPresentationDocumentTargets []string `json:"deep_linking_accept_presentation_document_targets,omitempty" form:"deep_linking_accept_presentation_document_targets"`
-	DeepLinkingAutoCreate     *bool    `json:"deep_linking_auto_create,omitempty" form:"deep_linking_auto_create"`
-	DeepLinkingTitle          string   `json:"deep_linking_title,omitempty" form:"deep_linking_title"`
-	DeepLinkingText           string   `json:"deep_linking_text,omitempty" form:"deep_linking_text"`
-
+	DeepLinkingAutoCreate                        *bool    `json:"deep_linking_auto_create,omitempty" form:"deep_linking_auto_create"`
+	DeepLinkingTitle                             string   `json:"deep_linking_title,omitempty" form:"deep_linking_title"`
+	DeepLinkingText                              string   `json:"deep_linking_text,omitempty" form:"deep_linking_text"`
 }
 
 type DeepLinkingSession struct {
-    Settings  *DeepLinkingSettings
-    Platform  *Platform
-    UserID    string
-    ContextID string
-    CreatedAt time.Time
+	Settings  *DeepLinkingSettings
+	Platform  *Platform
+	UserID    string
+	ContextID string
+	CreatedAt time.Time
 }
 
 // Константы для типов контента
 const (
-    ContentTypeLtiResourceLink = "ltiResourceLink"
-    ContentTypeLink            = "link"
-    ContentTypeHTML            = "html"
-    ContentTypeImage           = "image"
-    ContentTypeFile            = "file"
+	ContentTypeLtiResourceLink = "ltiResourceLink"
+	ContentTypeLink            = "link"
+	ContentTypeHTML            = "html"
+	ContentTypeImage           = "image"
+	ContentTypeFile            = "file"
 )
 
 // Константы для placement'ов
 const (
-    PlacementCourseAssignmentsMenu = "course_assignments_menu"
-    PlacementAssignmentEditMenu    = "assignment_edit_menu"
-    PlacementLinkEmbedButton       = "link_embed_button"
-    PlacementModuleQuicklinksMenu  = "module_quicklinks_menu"
+	PlacementCourseAssignmentsMenu = "course_assignments_menu"
+	PlacementAssignmentEditMenu    = "assignment_edit_menu"
+	PlacementLinkEmbedButton       = "link_embed_button"
+	PlacementModuleQuicklinksMenu  = "module_quicklinks_menu"
 )
 
 type RegistrationResponse struct {

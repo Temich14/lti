@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -83,18 +84,56 @@ func (s *LTIService) prepareToolRegistrationRequest() *domain.ToolRegistrationRe
 		JWKSUri:                 s.cfg.OAuthConfig.JWKSUri,
 		TokenEndpointAuthMethod: "private_key_jwt",
 		ResponseTypes:           []string{"id_token"},
-		GrantTypes:              []string{"implicit, client_credentials"},
+		GrantTypes:              []string{"client_credentials", "implicit"},
 		RedirectUris:            []string{s.cfg.OAuthConfig.RedirectURI},
 		ClientName:              s.cfg.LTIConfig.ToolName,
-		Scope:                   Scope: strings.Join([]string{
-            "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
-            "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
-            "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
-            "https://purl.imsglobal.org/spec/lti-ags/scope/score",
-            "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly",
-        }, " "),,
+		Scope: strings.Join([]string{
+			"https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
+			"https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly",
+			"https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
+			"https://purl.imsglobal.org/spec/lti-ags/scope/score",
+			"https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly",
+		}, " "),
 		ToolConfiguration: domain.ToolConfiguration{
 			Domain: s.cfg.LTIConfig.Domain,
+			Claims: []string{
+				"iss",
+				"sub",
+				"aud",
+				"exp",
+				"iat",
+				"nonce",
+				"name",
+				"given_name",
+				"family_name",
+				"email",
+				"https://purl.imsglobal.org/spec/lti/claim/context",
+				"https://purl.imsglobal.org/spec/lti/claim/deployment_id",
+				"https://purl.imsglobal.org/spec/lti/claim/roles",
+				"https://purl.imsglobal.org/spec/lti/claim/custom",
+				"https://purl.imsglobal.org/spec/lti/claim/launch_presentation",
+				"https://purl.imsglobal.org/spec/lti-ags/claim/endpoint",
+				"https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice",
+				"https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings",
+			},
+			Messages: []domain.LTIMessage{
+				{
+					Type: "LtiResourceLinkRequest",
+					Placements: []string{
+						"course_assignments_menu",
+						"assignment_edit_menu",
+						"link_embed_button",
+						"module_quicklinks_menu",
+					},
+				},
+				{
+					Type: "LtiDeepLinkingRequest",
+					Placements: []string{
+						"course_assignments_menu",
+						"link_embed_button",
+					},
+				},
+			},
 		},
 	}
 	return &registrationBody

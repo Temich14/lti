@@ -2,7 +2,7 @@
 package app
 
 import (
-	"LTICore/internal/adapters/http"
+	"LTICore/internal/config"
 	"LTICore/internal/core/domain"
 	"LTICore/internal/core/service"
 	"bytes"
@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -334,9 +333,9 @@ func TestLogin_Success(t *testing.T) {
 	server, _, _, _, _, platformRepo, loginSessionRepo, _, _ := setupTestServer(t)
 
 	loginReq := domain.LoginRequest{
-		Iss:           "https://platform.example",
-		ClientID:      "client123",
-		LoginHint:     123,
+		Iss:            "https://platform.example",
+		ClientID:       "client123",
+		LoginHint:      123,
 		LTIMessageHint: 456,
 	}
 
@@ -425,9 +424,9 @@ func TestLaunch_Success(t *testing.T) {
 
 	// Например:
 	platformRepo.On("GetByIssuerAndClientID", mock.Anything, "https://platform.example", "client123").Return(&domain.Platform{
-		JwksUrl: "https://platform.example/jwks",
+		JwksUrl:  "https://platform.example/jwks",
 		ClientID: "client123",
-		Issuer: "https://platform.example",
+		Issuer:   "https://platform.example",
 	}, nil)
 
 	loginSessionRepo.On("GetAndDelete", mock.Anything, state).Return(session, nil)
@@ -528,9 +527,9 @@ func TestAGS_CreateLineItem_Success(t *testing.T) {
 	server, agsRepo, agsMetrics, _, _, _, _, _, _ := setupTestServer(t)
 
 	newItem := domain.LineItem{
-		Label:       "New Item",
+		Label:        "New Item",
 		ScoreMaximum: 75,
-		ContextID:   "context-123",
+		ContextID:    "context-123",
 	}
 
 	agsMetrics.On("IncAGSRequestsTotal").Once()
@@ -555,9 +554,9 @@ func TestAGS_CreateLineItem_InvalidData(t *testing.T) {
 
 	// Пустая метка
 	invalidItem := domain.LineItem{
-		Label:       "",
+		Label:        "",
 		ScoreMaximum: 75,
-		ContextID:   "context-123",
+		ContextID:    "context-123",
 	}
 
 	agsMetrics.On("IncAGSRequestsTotal").Once()
@@ -670,12 +669,12 @@ func TestDeepLinking_ShowContentSelection_Success(t *testing.T) {
 
 	idToken := "valid.id.token"
 	settings := &domain.DeepLinkingSettings{
-		AcceptTypes:        []string{"ltiResourceLink"},
-		AcceptMultiple:     true,
+		AcceptTypes:       []string{"ltiResourceLink"},
+		AcceptMultiple:    true,
 		DeepLinkReturnURL: "https://platform.example/return",
-		Title:              "Select Content",
-		Text:               "Choose an item",
-		Data:               "some-data",
+		Title:             "Select Content",
+		Text:              "Choose an item",
+		Data:              "some-data",
 	}
 
 	dlService.On("HandleDeepLinkingRequest", mock.Anything, idToken).Return(settings, nil)
@@ -853,10 +852,10 @@ func TestDeepLinking_CreateLineItemFromSelection_Success(t *testing.T) {
 	server, _, _, _, _, _, _, _, dlService := setupTestServer(t)
 
 	reqBody := map[string]interface{}{
-		"resource_id":   "res-123",
-		"label":         "Assignment",
-		"scoreMaximum":  100.0,
-		"context_id":    "context-456",
+		"resource_id":  "res-123",
+		"label":        "Assignment",
+		"scoreMaximum": 100.0,
+		"context_id":   "context-456",
 	}
 	body, _ := json.Marshal(reqBody)
 
