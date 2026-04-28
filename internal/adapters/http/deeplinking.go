@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -31,52 +32,27 @@ func NewDeepLinkingHandler(srv DeepLinkingService) *DeepLinkingHandler {
 
 // ShowContentSelection отображает страницу выбора контента для Deep Linking
 func (h *DeepLinkingHandler) ShowContentSelection(c *gin.Context) {
-	// Получаем JWT из формы (LTI launch request)
-	idToken := c.PostForm("id_token")
-	if idToken == "" {
-		c.HTML(http.StatusBadRequest, "error.html", gin.H{
-			"error": "Missing id_token",
+
+	sessionID, err := c.Cookie("dl_session")
+	if err != nil {
+		log.Println(err)
+		c.HTML(http.StatusUnauthorized, "error.html", gin.H{
+			"error": "Missing session",
 		})
 		return
 	}
 
-	// Извлекаем настройки Deep Linking из токена
-	settings, err := h.srv.HandleDeepLinkingRequest(c.Request.Context(), idToken)
+	session, err := h.srv.GetDeepLinkingSession(c.Request.Context(), sessionID)
 	if err != nil {
 		c.HTML(http.StatusBadRequest, "error.html", gin.H{
-			"error": "Invalid deep linking request: " + err.Error(),
+			"error": "Invalid session",
 		})
 		return
 	}
 
-	// Получаем платформу из контекста (должна быть установлена в middleware)
-	platform, exists := c.Get("platform")
-	if !exists {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
-			"error": "Platform not found",
-		})
-		return
-	}
+	settings := session.Settings
+	platform := session.Platform
 
-	// Сохраняем настройки и платформу в сессии для последующего использования
-	sessionID := generateSessionID()
-	err = h.srv.StoreDeepLinkingSession(c.Request.Context(), sessionID, &domain.DeepLinkingSession{
-		Settings:  settings,
-		Platform:  platform.(*domain.Platform),
-		UserID:    c.GetString("user_id"),
-		ContextID: c.GetString("context_id"),
-	})
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
-			"error": "Failed to create session",
-		})
-		return
-	}
-
-	// Устанавливаем cookie с ID сессии
-	c.SetCookie("dl_session", sessionID, 3600, "/", "", false, true)
-
-	// Рендерим страницу выбора контента
 	c.HTML(http.StatusOK, "deeplink/select.html", gin.H{
 		"settings":         settings,
 		"acceptTypes":      settings.AcceptTypes,
@@ -86,6 +62,7 @@ func (h *DeepLinkingHandler) ShowContentSelection(c *gin.Context) {
 		"text":             settings.Text,
 		"data":             settings.Data,
 		"returnUrl":        settings.DeepLinkReturnURL,
+		"platform":         platform,
 	})
 }
 

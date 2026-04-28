@@ -36,3 +36,5 @@ WHERE issuer = $1;
 
 ALTER TABLE lti_platforms
     ADD CONSTRAINT unique_platform UNIQUE (issuer, client_id);
+
+-- name:

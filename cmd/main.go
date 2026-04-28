@@ -56,7 +56,7 @@ func main() {
 	}
 
 	ginEntry := rkgin.GetGinEntry("lti-core")
-	ginEntry.Router.LoadHTMLGlob("templates/**/*")
+	ginEntry.Router.LoadHTMLGlob("templates/**/*.html")
 	ginEntry.Router.Static("/static", "./static")
 	err = mtrcs.Register(ginEntry.PromEntry.Registerer)
 	if err != nil {

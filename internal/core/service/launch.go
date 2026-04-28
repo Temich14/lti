@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func (s *LTIService) Launch(ctx context.Context, idToken, state string) ([]domain.NRPSMember, error) {
+func (s *LTIService) Launch(ctx context.Context, idToken, state string) (*domain.LaunchContext, error) {
 
 	start := time.Now()
 	s.log.Info("lti.launch.start")
@@ -22,66 +22,133 @@ func (s *LTIService) Launch(ctx context.Context, idToken, state string) ([]domai
 		s.metrics.ObserveLaunchDuration(time.Since(start))
 	}()
 
+	// 1. validate state/session
 	session, err := s.validateSession(ctx, state)
 	if err != nil {
 		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.validate_session.failed", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("invalid session: %w", err)
 	}
 
+	// 2. parse unverified token (for metadata only)
 	unverifiedToken, err := s.parseUnverifiedToken(idToken)
 	if err != nil {
 		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.parse_unverified_token.failed", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("parse token failed: %w", err)
 	}
 
 	kid, err := s.extractKID(unverifiedToken)
 	if err != nil {
 		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.extract_kid.failed", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("extract kid failed: %w", err)
 	}
 
+	// 3. resolve platform
 	platform, err := s.resolvePlatform(ctx, unverifiedToken)
 	if err != nil {
 		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.resolve_platform.failed", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("resolve platform failed: %w", err)
 	}
 
+	// 4. fetch key
 	pubKey, err := s.fetchPlatformPublicKey(platform.JwksUrl, kid)
 	if err != nil {
 		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.fetch_platform_public_key.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("jwks fetch failed: %w", err)
 	}
 
+	// 5. verify token
 	claims, err := s.verifyToken(idToken, pubKey)
 	if err != nil {
 		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.verify_token.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("token verification failed: %w", err)
 	}
 
+	// 6. validate claims
 	if err := s.validateClaims(claims, session, platform); err != nil {
 		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.validate_claims.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
-		return nil, err
-	}
-
-	members, err := s.fetchNRPSMembers(ctx, claims, platform)
-	if err != nil {
-		s.metrics.IncLaunchError()
-		s.log.Error("lti.launch.fetch_nrps_members.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
-		return nil, err
+		return nil, fmt.Errorf("claims invalid: %w", err)
 	}
 
 	s.metrics.IncLaunchSuccess()
-	s.log.Info("lti.launch.ok", "issuer", platform.Issuer, "client_id", platform.ClientID, "member_count", len(members), "duration_ms", time.Since(start).Milliseconds())
 
-	return members, nil
+	// 7. build launch context (IMPORTANT)
+	return &domain.LaunchContext{
+		Platform: platform,
+		Session:  session,
+		Claims:   claims,
+	}, nil
 }
+
+//
+//func (s *LTIService) Launch(ctx context.Context, idToken, state string) ([]domain.NRPSMember, error) {
+//
+//	start := time.Now()
+//	s.log.Info("lti.launch.start")
+//
+//	defer func() {
+//		s.metrics.ObserveLaunchDuration(time.Since(start))
+//	}()
+//
+//	session, err := s.validateSession(ctx, state)
+//	if err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.validate_session.failed", "err", err)
+//		return nil, err
+//	}
+//
+//	unverifiedToken, err := s.parseUnverifiedToken(idToken)
+//	if err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.parse_unverified_token.failed", "err", err)
+//		return nil, err
+//	}
+//
+//	kid, err := s.extractKID(unverifiedToken)
+//	if err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.extract_kid.failed", "err", err)
+//		return nil, err
+//	}
+//
+//	platform, err := s.resolvePlatform(ctx, unverifiedToken)
+//	if err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.resolve_platform.failed", "err", err)
+//		return nil, err
+//	}
+//
+//	pubKey, err := s.fetchPlatformPublicKey(platform.JwksUrl, kid)
+//	if err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.fetch_platform_public_key.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
+//		return nil, err
+//	}
+//
+//	claims, err := s.verifyToken(idToken, pubKey)
+//	if err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.verify_token.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
+//		return nil, err
+//	}
+//
+//	if err := s.validateClaims(claims, session, platform); err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.validate_claims.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
+//		return nil, err
+//	}
+//
+//	members, err := s.fetchNRPSMembers(ctx, claims, platform)
+//	if err != nil {
+//		s.metrics.IncLaunchError()
+//		s.log.Error("lti.launch.fetch_nrps_members.failed", "issuer", platform.Issuer, "client_id", platform.ClientID, "err", err)
+//		return nil, err
+//	}
+//
+//	s.metrics.IncLaunchSuccess()
+//	s.log.Info("lti.launch.ok", "issuer", platform.Issuer, "client_id", platform.ClientID, "member_count", len(members), "duration_ms", time.Since(start).Milliseconds())
+//
+//	return members, nil
+//}
 
 func (s *LTIService) validateSession(ctx context.Context, state string) (*domain.LoginSession, error) {
 
@@ -163,13 +230,11 @@ func (s *LTIService) fetchPlatformPublicKey(jwksURL, kid string) (*rsa.PublicKey
 }
 
 func (s *LTIService) verifyToken(idToken string, pubKey *rsa.PublicKey) (jwt.MapClaims, error) {
-
-	token, err := jwt.Parse(idToken, func(t *jwt.Token) (interface{}, error) {
-
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	token, err := parser.Parse(idToken, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-
 		return pubKey, nil
 	})
 
@@ -186,14 +251,10 @@ func (s *LTIService) validateClaims(
 	platform *domain.Platform,
 ) error {
 
-	now := time.Now()
+	now := time.Now().UTC().Unix()
 
-	if !claims.VerifyExpiresAt(now.Unix(), true) {
+	if !claims.VerifyExpiresAt(now, true) {
 		return fmt.Errorf("token expired")
-	}
-
-	if !claims.VerifyIssuedAt(now.Unix(), true) {
-		return fmt.Errorf("token used before issued")
 	}
 
 	if !claims.VerifyAudience(platform.ClientID, true) {

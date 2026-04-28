@@ -16,7 +16,7 @@ type PlatformCfg struct {
 type LTIService interface {
 	Register(ctx context.Context, openidUrl, registrationToken string) error
 	Login(ctx context.Context, req *domain.LoginRequest) (string, error)
-	Launch(ctx context.Context, idToken, state string) ([]domain.NRPSMember, error)
+	Launch(ctx context.Context, idToken, state string) (*domain.LaunchContext, error)
 }
 
 type AuthAdapter struct {
@@ -90,7 +90,7 @@ func (a *AuthAdapter) OIDCLogin(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusFound, loginURL)
+	c.Redirect(http.StatusSeeOther, loginURL)
 }
 
 func (a *AuthAdapter) Login(c *gin.Context) {
@@ -123,5 +123,20 @@ func (a *AuthAdapter) Register(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{})
+
+	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(`
+<!DOCTYPE html>
+<html>
+<head><title>Registration Complete</title></head>
+<body>
+<script>
+  (window.opener || window.parent).postMessage(
+    { subject: 'org.imsglobal.lti.close' },
+    '*'
+  );
+</script>
+<p>Registration completed. You can close this window.</p>
+</body>
+</html>
+`))
 }

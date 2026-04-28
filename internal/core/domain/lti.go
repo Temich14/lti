@@ -14,7 +14,18 @@ type DeepLinkingRequest struct {
 	Context             *LTIContext            `json:"https://purl.imsglobal.org/spec/lti/claim/context,omitempty"`
 	Custom              map[string]interface{} `json:"https://purl.imsglobal.org/spec/lti/claim/custom,omitempty"`
 }
+type DeepLinkingRequestParams struct {
+	AcceptTypes                       []string
+	AcceptPresentationDocumentTargets []string
+	AcceptMultiple                    bool
+	AcceptCopyAdvice                  bool
+	AutoCreate                        bool
+	CanConfirm                        bool
 
+	Title             string
+	Text              string
+	DeepLinkReturnURL string
+}
 type DeepLinkingSettings struct {
 	AcceptTypes                       []string `json:"accept_types"`
 	AcceptMediaTypes                  []string `json:"accept_media_types"`
@@ -78,6 +89,12 @@ type Availability struct {
 type Submission struct {
 	StartAt *time.Time `json:"startAt,omitempty"`
 	EndAt   *time.Time `json:"endAt,omitempty"`
+}
+
+type LaunchContext struct {
+	Platform *Platform
+	Session  *LoginSession
+	Claims   jwt.MapClaims
 }
 
 type OpenidConfiguration struct {

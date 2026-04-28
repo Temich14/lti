@@ -1,0 +1,64 @@
+.container {
+  max-width: 980px;
+  margin: 24px auto;
+  padding: 0 16px;
+  font-family: Arial, sans-serif;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.content-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.content-card.selected {
+  border-color: #0b5fff;
+  box-shadow: 0 0 0 2px rgba(11, 95, 255, 0.15);
+}
+
+.content-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.content-text {
+  color: #444;
+  font-size: 14px;
+}
+
+.selection-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #0b5fff;
+  color: #fff;
+  border-color: #0b5fff;
+}
+
+.btn-secondary {
+  background: #f6f7f9;
+}
+
+.empty-state {
+  color: #666;
+  padding: 12px;
+}
+

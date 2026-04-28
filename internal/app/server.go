@@ -29,7 +29,7 @@ func (s *Server) RegisterRoutes() {
 	group := s.api.Group("/lti")
 
 	dlGroup := group.Group("/deeplink")
-	dlGroup.POST("/select", s.dlHandler.ShowContentSelection)
+	dlGroup.GET("/select", s.dlHandler.ShowContentSelection)
 	dlGroup.POST("/return", s.dlHandler.ReturnContent)
 	dlGroup.POST("/api/return", s.dlHandler.APIReturnContent)
 	dlGroup.GET("/content", s.dlHandler.GetAvailableContent)

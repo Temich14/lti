@@ -30,48 +30,132 @@ type LaunchRequest struct {
 }
 
 func (l *LaunchAdapter) Launch(c *gin.Context) {
-	var req LaunchRequest
-	req.IdToken = c.PostForm("id_token")
-	req.State = c.PostForm("state")
 
-	members, err := l.ltiService.Launch(c.Request.Context(), req.IdToken, req.State)
+	idToken := c.PostForm("id_token")
+	state := c.PostForm("state")
+
+	ctxData, err := l.ltiService.Launch(c.Request.Context(), idToken, state)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
-	_ = members
 
-	// Create deeplink session for selector UI.
+	// extract DL settings from claims (IMPORTANT FIX)
+	dlSettings := extractDeepLinkingSettings(ctxData.Claims)
+
 	sessionID := generateLaunchSessionID()
-	settings := &domain.DeepLinkingSettings{
-		AcceptTypes:       []string{domain.ContentTypeLtiResourceLink},
-		AcceptMultiple:    true,
-		Title:             "Select Content",
-		Text:              "Choose an item to deeplink.",
-		DeepLinkReturnURL: c.Query("return_url"),
-	}
 
-	platform := extractPlatformFromIDToken(req.IdToken)
-	if platform == nil {
-		platform = &domain.Platform{}
-	}
+	_ = l.dlService.StoreDeepLinkingSession(
+		c.Request.Context(),
+		sessionID,
+		&domain.DeepLinkingSession{
+			Settings:  dlSettings,
+			Platform:  ctxData.Platform,
+			UserID:    getUserID(ctxData.Claims),
+			ContextID: getContextID(ctxData.Claims),
+		},
+	)
 
-	_ = l.dlService.StoreDeepLinkingSession(c.Request.Context(), sessionID, &domain.DeepLinkingSession{
-		Settings:  settings,
-		Platform:  platform,
-		UserID:    "",
-		ContextID: "",
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "dl_session",
+		Value:    sessionID,
+		Path:     "/",
+		MaxAge:   3600,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 
-	c.SetCookie("dl_session", sessionID, 3600, "/", "", false, true)
+	selectRedirectURL := "deeplink/select"
+	c.Redirect(http.StatusSeeOther, selectRedirectURL)
+}
+func getUserID(claims jwt.MapClaims) string {
+	if claims == nil {
+		return ""
+	}
 
-	c.HTML(http.StatusOK, "deeplinking/select.html", gin.H{
-		"acceptMultiple": settings.AcceptMultiple,
-		"acceptTypes":    settings.AcceptTypes,
-		"title":          settings.Title,
-		"text":           settings.Text,
-		"returnUrl":      settings.DeepLinkReturnURL,
-	})
+	if sub, ok := claims["sub"].(string); ok {
+		return sub
+	}
+
+	return ""
+}
+func getContextID(claims jwt.MapClaims) string {
+	if claims == nil {
+		return ""
+	}
+
+	raw, ok := claims["https://purl.imsglobal.org/spec/lti/claim/context"]
+	if !ok {
+		return ""
+	}
+
+	ctx, ok := raw.(map[string]interface{})
+	if !ok {
+		return ""
+	}
+
+	if id, ok := ctx["id"].(string); ok {
+		return id
+	}
+
+	return ""
+}
+func extractDeepLinkingSettings(claims jwt.MapClaims) *domain.DeepLinkingSettings {
+
+	raw, ok := claims["https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings"]
+	if !ok {
+		return &domain.DeepLinkingSettings{}
+	}
+
+	settingsMap, ok := raw.(map[string]interface{})
+	if !ok {
+		return &domain.DeepLinkingSettings{}
+	}
+
+	settings := &domain.DeepLinkingSettings{}
+
+	if v, ok := settingsMap["accept_types"].([]interface{}); ok {
+		settings.AcceptTypes = toStringSlice(v)
+	}
+
+	if v, ok := settingsMap["accept_presentation_document_targets"].([]interface{}); ok {
+		settings.AcceptPresentationDocumentTargets = toStringSlice(v)
+	}
+
+	if v, ok := settingsMap["accept_multiple"].(bool); ok {
+		settings.AcceptMultiple = v
+	}
+
+	if v, ok := settingsMap["auto_create"].(bool); ok {
+		settings.AutoCreate = v
+	}
+
+	if v, ok := settingsMap["title"].(string); ok {
+		settings.Title = v
+	}
+
+	if v, ok := settingsMap["text"].(string); ok {
+		settings.Text = v
+	}
+
+	if v, ok := settingsMap["deep_link_return_url"].(string); ok {
+		settings.DeepLinkReturnURL = v
+	}
+
+	return settings
+}
+
+func toStringSlice(input []interface{}) []string {
+	out := make([]string, 0, len(input))
+	for _, v := range input {
+		if s, ok := v.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func generateLaunchSessionID() string {
