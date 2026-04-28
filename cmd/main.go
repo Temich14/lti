@@ -10,6 +10,8 @@ import (
 	"LTICore/internal/infrastructure/metrics"
 	"LTICore/internal/infrastructure/repo"
 	"context"
+	"encoding/json"
+	"html/template"
 	"log"
 	"log/slog"
 	"os"
@@ -60,19 +62,24 @@ func main() {
 	templatesPath := "templates"
 	ginEntry := rkgin.GetGinEntry("lti-core")
 	ginEngine := ginEntry.Router
+	ginEngine.SetFuncMap(template.FuncMap{
+		"toJson": func(v interface{}) string {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return "null"
+			}
+			return string(b)
+		},
+		"add": func(a, b int) int {
+			return a + b
+		},
+		"safeHTML": func(s string) template.HTML {
+			return template.HTML(s)
+		},
+	})
 	templatePattern := filepath.Join(templatesPath, "*", "*.html")
 	log.Printf("Loading templates from pattern: %s", templatePattern)
-
-	ginEngine.LoadHTMLGlob(templatePattern)
-
-	templateFile := filepath.Join(templatesPath, "deeplinking", "select.html")
-	if _, err := os.Stat(templateFile); os.IsNotExist(err) {
-		log.Printf("Template file not found: %s", templateFile)
-	}
-
-	if ginEngine.HTMLRender == nil {
-		log.Fatal(err)
-	}
+	ginEngine.LoadHTMLGlob("templates/deeplinking/*.html")
 
 	ginEntry.Router.Static("/static", "./static")
 	err = mtrcs.Register(ginEntry.PromEntry.Registerer)
