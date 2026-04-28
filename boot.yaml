@@ -34,15 +34,15 @@ app:
     max_size: 10
   lti:
     tool_name: dive
-    domain: "172.25.16.1"
-    registration_client_uri: "http://172.25.16.1:8080/lti/auth/register"
-    login_client_uri: "http://172.25.16.1:8080/lti/auth/login"
+    domain: "172.17.16.1"
+    registration_client_uri: "http://172.17.16.1:8080/lti/auth/register"
+    login_client_uri: "http://172.17.16.1:8080/lti/auth/login"
     application_type: web
   oauth:
     private_key_path: private.pem
     key_id: tool-key-1
-    redirect_uri: "http://172.25.16.1:8080/lti/launch"
-    jwks_uri: "http://172.25.16.1:8080/lti/.well-known/jwks.json"
+    redirect_uri: "http://172.17.16.1:8080/lti/launch"
+    jwks_uri: "http://172.17.16.1:8080/lti/.well-known/jwks.json"
     scopes:
       - openid
       - profile

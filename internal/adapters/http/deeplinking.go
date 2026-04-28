@@ -5,10 +5,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type DeepLinkingHandler struct {
@@ -33,14 +33,7 @@ func NewDeepLinkingHandler(srv DeepLinkingService) *DeepLinkingHandler {
 // ShowContentSelection отображает страницу выбора контента для Deep Linking
 func (h *DeepLinkingHandler) ShowContentSelection(c *gin.Context) {
 
-	sessionID, err := c.Cookie("dl_session")
-	if err != nil {
-		log.Println(err)
-		c.HTML(http.StatusUnauthorized, "error.html", gin.H{
-			"error": "Missing session",
-		})
-		return
-	}
+	sessionID := c.Query("session_id")
 
 	session, err := h.srv.GetDeepLinkingSession(c.Request.Context(), sessionID)
 	if err != nil {
@@ -53,7 +46,7 @@ func (h *DeepLinkingHandler) ShowContentSelection(c *gin.Context) {
 	settings := session.Settings
 	platform := session.Platform
 
-	c.HTML(http.StatusOK, "deeplink/select.html", gin.H{
+	c.HTML(http.StatusOK, "deeplinking/select.html", gin.H{
 		"settings":         settings,
 		"acceptTypes":      settings.AcceptTypes,
 		"acceptMediaTypes": settings.AcceptMediaTypes,

@@ -10,11 +10,13 @@ import (
 	"LTICore/internal/infrastructure/metrics"
 	"LTICore/internal/infrastructure/repo"
 	"context"
-	"github.com/rookie-ninja/rk-boot/v2"
-	rkgin "github.com/rookie-ninja/rk-gin/v2/boot"
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
+
+	rkboot "github.com/rookie-ninja/rk-boot/v2"
+	rkgin "github.com/rookie-ninja/rk-gin/v2/boot"
 )
 
 // @title Swagger Example API
@@ -55,8 +57,23 @@ func main() {
 		log.Fatal(err)
 	}
 
+	templatesPath := "templates"
 	ginEntry := rkgin.GetGinEntry("lti-core")
-	ginEntry.Router.LoadHTMLGlob("templates/**/*.html")
+	ginEngine := ginEntry.Router
+	templatePattern := filepath.Join(templatesPath, "*", "*.html")
+	log.Printf("Loading templates from pattern: %s", templatePattern)
+
+	ginEngine.LoadHTMLGlob(templatePattern)
+
+	templateFile := filepath.Join(templatesPath, "deeplinking", "select.html")
+	if _, err := os.Stat(templateFile); os.IsNotExist(err) {
+		log.Printf("Template file not found: %s", templateFile)
+	}
+
+	if ginEngine.HTMLRender == nil {
+		log.Fatal(err)
+	}
+
 	ginEntry.Router.Static("/static", "./static")
 	err = mtrcs.Register(ginEntry.PromEntry.Registerer)
 	if err != nil {

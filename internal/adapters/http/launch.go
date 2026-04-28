@@ -6,9 +6,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
-	"net/http"
 )
 
 type LaunchAdapter struct {
@@ -58,17 +60,7 @@ func (l *LaunchAdapter) Launch(c *gin.Context) {
 		},
 	)
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "dl_session",
-		Value:    sessionID,
-		Path:     "/",
-		MaxAge:   3600,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteNoneMode,
-	})
-
-	selectRedirectURL := "deeplink/select"
+	selectRedirectURL := fmt.Sprintf("deeplink/select?session_id=%s", sessionID)
 	c.Redirect(http.StatusSeeOther, selectRedirectURL)
 }
 func getUserID(claims jwt.MapClaims) string {
