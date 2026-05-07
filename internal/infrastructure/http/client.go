@@ -38,12 +38,26 @@ func doRequestWithRetry(client *http.Client, req *http.Request, retries int) (*h
 			continue
 		}
 
-		if resp.StatusCode < 500 {
+		// Retry on rate limits and transient server errors.
+		// 429 is common for LMS/NRPS throttling.
+		if resp.StatusCode < 500 && resp.StatusCode != http.StatusTooManyRequests {
 			return resp, nil
 		}
 
 		resp.Body.Close()
-		time.Sleep(time.Duration(i+1) * 200 * time.Millisecond)
+
+		// Respect Retry-After if present, otherwise fallback to incremental backoff.
+		retryAfter := resp.Header.Get("Retry-After")
+		if retryAfter != "" {
+			// Retry-After can be seconds or an HTTP date; here we handle seconds.
+			if sec, parseErr := time.ParseDuration(retryAfter + "s"); parseErr == nil {
+				time.Sleep(sec)
+			} else {
+				time.Sleep(time.Duration(i+1) * 200 * time.Millisecond)
+			}
+		} else {
+			time.Sleep(time.Duration(i+1) * 200 * time.Millisecond)
+		}
 	}
 
 	return resp, err

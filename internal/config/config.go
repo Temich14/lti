@@ -16,6 +16,8 @@ type Config struct {
 	Database    DatabaseConfig `yaml:"database"`
 	OAuthConfig OAuthConfig    `yaml:"oauth"`
 	RedisConfig RedisConfig    `yaml:"redis"`
+	Kafka       KafkaConfig    `yaml:"kafka"`
+	EnrollmentSync EnrollmentSyncConfig `yaml:"enrollment_sync"`
 }
 type RedisConfig struct {
 	TTL             time.Duration `yaml:"ttl"`
@@ -49,6 +51,36 @@ type DatabaseConfig struct {
 	SSLMode  string `yaml:"sslmode"`
 	MaxConns int    `yaml:"max_conns"`
 	MinConns int    `yaml:"min_conns"`
+}
+
+type KafkaConfig struct {
+	Enabled     bool     `yaml:"enabled"`
+	Brokers     []string `yaml:"brokers"`
+	Topic       string   `yaml:"topic"`
+	GroupID     string   `yaml:"group_id"`
+	ClientID    string   `yaml:"client_id"`
+	// Tuning knobs for consumer reads.
+	MinBytes int `yaml:"min_bytes"`
+	MaxBytes int `yaml:"max_bytes"`
+}
+
+type EnrollmentSyncConfig struct {
+	// Batching for users.synchronization events.
+	BatchSize int `yaml:"batch_size"`
+	// How many outbox events to publish per poll iteration.
+	OutboxBatchSize int `yaml:"outbox_batch_size"`
+	OutboxPollInterval time.Duration `yaml:"outbox_poll_interval"`
+	OutboxLockLease time.Duration `yaml:"outbox_lock_lease"`
+	OutboxMaxAttempts int `yaml:"outbox_max_attempts"`
+
+	// How often to pick up roster sync runs.
+	RosterWorkerPollInterval time.Duration `yaml:"roster_worker_poll_interval"`
+	RosterLockLease time.Duration `yaml:"roster_lock_lease"`
+
+	// Consumer side: apply events into consumer inbox and domain tables.
+	ConsumerEnabled bool `yaml:"consumer_enabled"`
+	ConsumerConcurrency int `yaml:"consumer_concurrency"`
+	ConsumerReadBatchSize int `yaml:"consumer_read_batch_size"`
 }
 
 func Load(path string) (*Config, error) {

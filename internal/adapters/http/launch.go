@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -16,14 +17,19 @@ import (
 type LaunchAdapter struct {
 	ltiService LTIService
 	dlService  LaunchDeepLinkingService
+	enrollStarter EnrollmentSyncStarter
 }
 
 type LaunchDeepLinkingService interface {
 	StoreDeepLinkingSession(ctx context.Context, sessionID string, session *domain.DeepLinkingSession) error
 }
 
-func NewLaunchAdapter(ltiService LTIService, dlService LaunchDeepLinkingService) *LaunchAdapter {
-	return &LaunchAdapter{ltiService: ltiService, dlService: dlService}
+type EnrollmentSyncStarter interface {
+	StartOrResumeRosterSync(ctx context.Context, issuer, clientID, lmsCourseID, nrpsContextMembershipsURL string) (uuid.UUID, error)
+}
+
+func NewLaunchAdapter(ltiService LTIService, dlService LaunchDeepLinkingService, enrollStarter EnrollmentSyncStarter) *LaunchAdapter {
+	return &LaunchAdapter{ltiService: ltiService, dlService: dlService, enrollStarter: enrollStarter}
 }
 
 type LaunchRequest struct {
@@ -46,6 +52,26 @@ func (l *LaunchAdapter) Launch(c *gin.Context) {
 
 	// extract DL settings from claims (IMPORTANT FIX)
 	dlSettings := extractDeepLinkingSettings(ctxData.Claims)
+
+	// Start enrollment synchronization in background (NRPS roster walk -> outbox -> Kafka).
+	if l.enrollStarter != nil {
+		if courseID := getContextID(ctxData.Claims); courseID != "" {
+			if nrpsClaimRaw, ok := ctxData.Claims["https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"]; ok {
+				if nrpsJSON, err := json.Marshal(nrpsClaimRaw); err == nil {
+					var nrps domain.NRPSClaim
+					if err := json.Unmarshal(nrpsJSON, &nrps); err == nil && nrps.ContextMembershipsURL != "" {
+						_, _ = l.enrollStarter.StartOrResumeRosterSync(
+							c.Request.Context(),
+							ctxData.Platform.Issuer,
+							ctxData.Platform.ClientID,
+							courseID,
+							nrps.ContextMembershipsURL,
+						)
+					}
+				}
+			}
+		}
+	}
 
 	sessionID := generateLaunchSessionID()
 

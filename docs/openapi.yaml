@@ -1,0 +1,680 @@
+openapi: 3.1.0
+info:
+  title: LTI Core API
+  version: 1.0.0
+  summary: LTI 1.3 + LTI Advantage (Deep Linking, AGS, NRPS sync)
+  description: |
+    API specification for LTI Core service.
+
+    Capabilities:
+    - LTI 1.3 registration/login/launch
+    - Deep Linking endpoints
+    - AGS line item and score operations
+    - Event contracts used by enrollment synchronization pipeline (NRPS -> outbox -> Kafka)
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Auth
+  - name: Launch
+  - name: JWKS
+  - name: Deep Linking
+  - name: AGS
+  - name: Event Contracts
+paths:
+  /lti/auth/register:
+    get:
+      tags: [Auth]
+      summary: Dynamic registration callback
+      description: Registers the tool on LMS platform and persists platform metadata.
+      parameters:
+        - in: query
+          name: openid_configuration
+          required: true
+          schema:
+            type: string
+            format: uri
+        - in: query
+          name: registration_token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Registration succeeded (HTML body).
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /lti/auth/login:
+    post:
+      tags: [Auth]
+      summary: OIDC login initiation
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "302":
+          description: Redirect to LMS authorization endpoint.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lti/launch:
+    post:
+      tags: [Launch]
+      summary: LTI launch endpoint
+      description: |
+        Validates OIDC/JWT launch and creates Deep Linking session.
+        If NRPS claim is present, starts/resumes enrollment synchronization.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [id_token, state]
+              properties:
+                id_token:
+                  type: string
+                state:
+                  type: string
+      responses:
+        "303":
+          description: Redirect to deep link selection page.
+          headers:
+            Location:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lti/.well-known/jwks.json:
+    get:
+      tags: [JWKS]
+      summary: JWKS endpoint
+      responses:
+        "200":
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JWKS"
+
+  /lti/deeplink/select:
+    get:
+      tags: [Deep Linking]
+      summary: Deep linking selection page
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: HTML selection UI
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lti/deeplink/return:
+    post:
+      tags: [Deep Linking]
+      summary: Return selected content to LMS
+      description: |
+        Uses `dl_session` cookie and selected items payload.
+        Returns JSON for AJAX clients, HTML auto-submit otherwise.
+      parameters:
+        - in: cookie
+          name: dl_session
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeepLinkReturnRequest"
+      responses:
+        "200":
+          description: JWT deep link response (JSON or HTML).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeepLinkReturnResponse"
+            text/html:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /lti/deeplink/api/return:
+    post:
+      tags: [Deep Linking]
+      summary: API return wrapper
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jwt]
+              properties:
+                jwt:
+                  type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  jwt:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lti/deeplink/content:
+    get:
+      tags: [Deep Linking]
+      summary: Get available deep link content
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: types
+          required: false
+          description: Comma-separated content type filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Available content list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ContentItem"
+                  settings:
+                    type: object
+                    properties:
+                      acceptMultiple:
+                        type: boolean
+                      autoCreate:
+                        type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid deep linking session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /lti/deeplink/lineitem:
+    post:
+      tags: [Deep Linking]
+      summary: Create line item from selection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LineItem"
+      responses:
+        "200":
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lti/deeplink/cancel:
+    get:
+      tags: [Deep Linking]
+      summary: Cancel deep linking session
+      responses:
+        "200":
+          description: Session cancelled
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /lti/ags/lineitems:
+    get:
+      tags: [AGS]
+      summary: List line items by context
+      parameters:
+        - in: query
+          name: context_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Line items list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lineitems:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LineItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    post:
+      tags: [AGS]
+      summary: Create or upsert line item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LineItem"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LineItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /lti/ags/score:
+    get:
+      tags: [AGS]
+      summary: Get learner score by line item
+      parameters:
+        - in: query
+          name: lineitem_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: user_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Score object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Score"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    post:
+      tags: [AGS]
+      summary: Save or upsert learner score
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Score"
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Score"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+components:
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    LoginRequest:
+      type: object
+      required: [iss, client_id, login_hint, target_link_uri]
+      properties:
+        iss:
+          type: string
+        client_id:
+          type: string
+        login_hint:
+          type: integer
+        lti_message_hint:
+          type: integer
+        target_link_uri:
+          type: string
+          format: uri
+        target_ling_uri:
+          type: string
+          deprecated: true
+          description: Legacy typo alias accepted for backward compatibility.
+
+    JWKS:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: "#/components/schemas/JWK"
+
+    JWK:
+      type: object
+      properties:
+        kty:
+          type: string
+        kid:
+          type: string
+        use:
+          type: string
+        alg:
+          type: string
+        n:
+          type: string
+        e:
+          type: string
+      required: [kty, kid, use, alg, n, e]
+
+    LineItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        max_score:
+          type: number
+          minimum: 0
+        context_id:
+          type: string
+        start_date_time:
+          type: string
+          format: date-time
+          nullable: true
+        end_date_time:
+          type: string
+          format: date-time
+          nullable: true
+      required: [label, max_score, context_id]
+
+    Score:
+      type: object
+      properties:
+        lineitem_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+        score:
+          type: number
+          minimum: 0
+      required: [lineitem_id, user_id, score]
+
+    Icon:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+        height:
+          type: integer
+      required: [url]
+
+    Thumbnail:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+        height:
+          type: integer
+      required: [url]
+
+    IFrame:
+      type: object
+      properties:
+        src:
+          type: string
+          format: uri
+        width:
+          type: integer
+        height:
+          type: integer
+      required: [src]
+
+    Availability:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+          nullable: true
+        endAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    Submission:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+          nullable: true
+        endAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ContentItem:
+      type: object
+      properties:
+        type:
+          type: string
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+        text:
+          type: string
+        icon:
+          $ref: "#/components/schemas/Icon"
+        thumbnail:
+          $ref: "#/components/schemas/Thumbnail"
+        custom:
+          type: object
+          additionalProperties: true
+        windowTarget:
+          type: string
+        iframe:
+          $ref: "#/components/schemas/IFrame"
+        lineItem:
+          $ref: "#/components/schemas/LineItem"
+        available:
+          $ref: "#/components/schemas/Availability"
+        submission:
+          $ref: "#/components/schemas/Submission"
+      required: [type]
+
+    DeepLinkSelectedItem:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        text:
+          type: string
+        url:
+          type: string
+          format: uri
+        resource_id:
+          type: string
+        lineItem:
+          type: object
+          properties:
+            scoreMaximum:
+              type: number
+              minimum: 0
+            label:
+              type: string
+
+    DeepLinkReturnRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeepLinkSelectedItem"
+
+    DeepLinkReturnResponse:
+      type: object
+      properties:
+        jwt:
+          type: string
+        returnUrl:
+          type: string
+          format: uri
+      required: [jwt, returnUrl]
+
+    # Event contracts (used by synchronization pipeline)
+    IncomingEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        aggregate_type:
+          type: string
+        aggregate_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        payload:
+          description: Event payload as arbitrary JSON object
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: string
+            - type: number
+            - type: boolean
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          type: integer
+          format: int32
+      required:
+        [id, aggregate_type, aggregate_id, event_type, payload, created_at, version]
+
+    UserSynchronizationUser:
+      type: object
+      properties:
+        sub:
+          type: string
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+      required: [sub, email]
+
+    UserSynchronizationPayloadV1:
+      type: object
+      properties:
+        lms:
+          type: object
+          properties:
+            issuer:
+              type: string
+              format: uri
+            course_id:
+              type: string
+          required: [issuer, course_id]
+        batch:
+          type: object
+          properties:
+            index:
+              type: integer
+            total:
+              type: integer
+          required: [index]
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSynchronizationUser"
+      required: [lms, batch, users]

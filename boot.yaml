@@ -46,3 +46,25 @@ app:
     scopes:
       - openid
       - profile
+
+kafka:
+  enabled: false
+  brokers:
+    - "localhost:9092"
+  topic: "users.synchronization.v1"
+  group_id: "lti-core.users-sync"
+  client_id: "lti-core"
+  min_bytes: 1
+  max_bytes: 10485760
+
+enrollment_sync:
+  batch_size: 100
+  outbox_batch_size: 200
+  outbox_poll_interval: "1s"
+  outbox_lock_lease: "30s"
+  outbox_max_attempts: 20
+  roster_worker_poll_interval: "2s"
+  roster_lock_lease: "1m"
+  consumer_enabled: false
+  consumer_concurrency: 1
+  consumer_read_batch_size: 1

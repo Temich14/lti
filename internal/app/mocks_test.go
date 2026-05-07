@@ -71,6 +71,11 @@ func (m *MockNRPSClient) GetMembers(ctx context.Context, url string, token strin
 	return args.Get(0).([]domain.NRPSMember), args.Error(1)
 }
 
+func (m *MockNRPSClient) GetMembersPage(ctx context.Context, url string, token string) ([]domain.NRPSMember, string, error) {
+	args := m.Called(ctx, url, token)
+	return args.Get(0).([]domain.NRPSMember), args.Get(1).(string), args.Error(2)
+}
+
 type MockPlatformRepo struct {
 	mock.Mock
 }

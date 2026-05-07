@@ -56,7 +56,7 @@ func (s *AGSService) CreateLineItem(ctx context.Context, li *domain.LineItem) er
 		}(),
 	)
 	s.metrics.IncAGSRequestsTotal()
-	if li == nil || li.Label == "" || li.ContextID == "" {
+	if li == nil || li.Label == "" || li.ContextID == "" || li.MaxScore <= 0 {
 		s.metrics.IncAGSRequestErrors()
 		s.log.Warn("ags.create_line_item.validation_failed")
 		return fmt.Errorf("invalid lineitem data")
@@ -104,7 +104,7 @@ func (s *AGSService) SaveScore(ctx context.Context, score *domain.Score) error {
 		}(),
 	)
 	s.metrics.IncAGSRequestsTotal()
-	if score == nil || score.LineItemID == "" || score.UserID == "" {
+	if score == nil || score.LineItemID == "" || score.UserID == "" || score.Score < 0 {
 		s.metrics.IncAGSRequestErrors()
 		s.log.Warn("ags.save_score.validation_failed")
 		return fmt.Errorf("invalid score data")

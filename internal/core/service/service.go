@@ -73,4 +73,7 @@ type LTIClient interface {
 
 type NRPSClient interface {
 	GetMembers(ctx context.Context, url string, token string) ([]domain.NRPSMember, error)
+	// GetMembersPage fetches a single NRPS memberships page and returns the next URL (cursor) if the server supports it.
+	// For continuation, callers should pass the returned nextURL as the next request URL.
+	GetMembersPage(ctx context.Context, url string, token string) (members []domain.NRPSMember, nextURL string, err error)
 }

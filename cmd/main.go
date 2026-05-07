@@ -5,6 +5,7 @@ import (
 	"LTICore/internal/app"
 	"LTICore/internal/config"
 	"LTICore/internal/core/service"
+	"LTICore/internal/enrollmentsync"
 	"LTICore/internal/infrastructure/db"
 	http2 "LTICore/internal/infrastructure/http"
 	"LTICore/internal/infrastructure/metrics"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/segmentio/kafka-go"
 	rkboot "github.com/rookie-ninja/rk-boot/v2"
 	rkgin "github.com/rookie-ninja/rk-gin/v2/boot"
 )
@@ -94,13 +96,69 @@ func main() {
 	ltiClient := http2.NewLtiClient(logger)
 
 	jwkservice := service.NewJwksService(cfg, jwkPK)
-	agsRepo := repo.NewMockAgsRepo()
+	agsRepo := repo.NewPostgresAgsRepo(pool)
 	agsService := service.NewAGSService(agsRepo, mtrcs)
 	ltiService := service.NewLtiService(ltiClient, nrpsClient, platformRepo, loginSessionRepo, jwkPK, cfg, mtrcs)
 	dlService := service.NewDeepLinkingService(ltiService, cfg)
 
+	enrollRepo := enrollmentsync.NewRepository(pool)
+	enrollProducer := enrollmentsync.NewProducerService(
+		enrollRepo,
+		nrpsClient,
+		ltiClient,
+		platformRepo,
+		jwkPK,
+		cfg.OAuthConfig.KeyID,
+		cfg.EnrollmentSync.BatchSize,
+		logger,
+	)
+
+	// Producer side workers (outbox + Kafka publishing, plus NRPS roster walk).
+	if cfg.Kafka.Enabled {
+		writer := &kafka.Writer{
+			Addr:         kafka.TCP(cfg.Kafka.Brokers...),
+			Topic:        cfg.Kafka.Topic,
+			Balancer:     &kafka.Hash{},
+			RequiredAcks: kafka.RequireOne,
+			Async:        false,
+		}
+		outboxPublisher := enrollmentsync.NewOutboxPublisherService(
+			enrollRepo,
+			writer,
+			cfg.EnrollmentSync.OutboxPollInterval,
+			cfg.EnrollmentSync.OutboxBatchSize,
+			cfg.EnrollmentSync.OutboxLockLease,
+			int32(cfg.EnrollmentSync.OutboxMaxAttempts),
+			logger,
+		)
+		go outboxPublisher.RunKafkaOutboxPublisher(ctx, "")
+	}
+
+	go enrollProducer.RunRosterSyncWorker(
+		ctx,
+		"",
+		cfg.EnrollmentSync.RosterWorkerPollInterval,
+		cfg.EnrollmentSync.RosterLockLease,
+		0,
+		int32(cfg.EnrollmentSync.OutboxMaxAttempts),
+	)
+
+	if cfg.EnrollmentSync.ConsumerEnabled && cfg.Kafka.Enabled {
+		for i := 0; i < cfg.EnrollmentSync.ConsumerConcurrency; i++ {
+			reader := enrollmentsync.BuildKafkaReader(
+				cfg.Kafka.Brokers,
+				cfg.Kafka.Topic,
+				cfg.Kafka.GroupID,
+				cfg.Kafka.MinBytes,
+				cfg.Kafka.MaxBytes,
+			)
+			consumer := enrollmentsync.NewConsumerService(enrollRepo, reader, logger)
+			go consumer.Run(ctx)
+		}
+	}
+
 	authAdapter := http.NewAuthAdapter(ltiService)
-	launchAdapter := http.NewLaunchAdapter(ltiService, dlService)
+	launchAdapter := http.NewLaunchAdapter(ltiService, dlService, enrollProducer)
 	jwkHandler := http.NewJWKSHandler(jwkservice)
 	agsHandler := http.NewAGSHandler(agsService)
 	dlHandler := http.NewDeepLinkingHandler(dlService)
