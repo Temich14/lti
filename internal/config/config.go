@@ -18,6 +18,12 @@ type Config struct {
 	RedisConfig RedisConfig    `yaml:"redis"`
 	Kafka       KafkaConfig    `yaml:"kafka"`
 	EnrollmentSync EnrollmentSyncConfig `yaml:"enrollment_sync"`
+	SessionService SessionServiceConfig `yaml:"session_service"`
+}
+
+type SessionServiceConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	GRPCTarget string `yaml:"grpc_target"` // host:port, plaintext (operator adds TLS as needed).
 }
 type RedisConfig struct {
 	TTL             time.Duration `yaml:"ttl"`
@@ -89,16 +95,21 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
-	var cfg AppWrapper
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	var raw bootFile
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, err
 	}
 
-	return &cfg.App, nil
+	out := raw.App
+	out.Kafka = raw.Kafka
+	out.EnrollmentSync = raw.EnrollmentSync
+	return &out, nil
 }
 
-type AppWrapper struct {
-	App Config `yaml:"app"`
+type bootFile struct {
+	App            Config               `yaml:"app"`
+	Kafka          KafkaConfig          `yaml:"kafka"`
+	EnrollmentSync EnrollmentSyncConfig `yaml:"enrollment_sync"`
 }
 
 func LoadPrivateKey(path string) (*rsa.PrivateKey, error) {

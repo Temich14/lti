@@ -46,6 +46,9 @@ app:
     scopes:
       - openid
       - profile
+  session_service:
+    enabled: false
+    grpc_target: "127.0.0.1:50051"
 
 kafka:
   enabled: false

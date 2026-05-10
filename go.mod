@@ -7,12 +7,14 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/google/uuid v1.4.0
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/segmentio/kafka-go v0.4.51
+	github.com/jhump/protoreflect v1.18.0
 	github.com/prometheus/client_golang v1.17.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/rookie-ninja/rk-boot/v2 v2.2.22
 	github.com/rookie-ninja/rk-gin/v2 v2.2.23
+	github.com/segmentio/kafka-go v0.4.51
 	github.com/stretchr/testify v1.11.1
+	google.golang.org/grpc v1.58.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 

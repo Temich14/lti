@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package google.protobuf;
+
+option go_package = "google.golang.org/protobuf/types/known/timestamppb";
+option csharp_namespace = "Google.Protobuf.WellKnownTypes";
+option cc_enable_arenas = true;
+
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}

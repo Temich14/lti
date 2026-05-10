@@ -47,7 +47,8 @@ func setupTestServer(t *testing.T) (
 	dlHandler := adaptershttp.NewDeepLinkingHandler(dlService)
 
 	authHandler := adaptershttp.NewAuthAdapter(ltiService)
-	launchHandler := adaptershttp.NewLaunchAdapter(ltiService, dlService, nil)
+	launchFlow := service.NewLaunchFlowService(nil, ltiService, dlService, nil, nil)
+	launchHandler := adaptershttp.NewLaunchAdapter(launchFlow)
 	jwksHandler := adaptershttp.NewJWKSHandler(service.NewJwksService(testConfig, testPrivateKey))
 
 	engine := gin.New()

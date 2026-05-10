@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package session.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/aquilia/education-sessions/session-service/gen/session/v1;sessionv1";
+
+// Launch surface for a learning session. Designed for extension (SCORM, xAPI, mobile, SAML).
+enum LaunchType {
+  LAUNCH_TYPE_UNSPECIFIED = 0;
+  LAUNCH_TYPE_INTERNAL = 1;
+  LAUNCH_TYPE_LTI = 2;
+  LAUNCH_TYPE_API = 3;
+}
+
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_ACTIVE = 1;
+  SESSION_STATUS_ENDED = 2;
+  SESSION_STATUS_EXPIRED = 3;
+}
+
+message Session {
+  string id = 1;
+  string request_id = 2;
+  string user_id = 3;
+  string course_id = 4;
+  optional string resource_id = 5;
+  LaunchType launch_type = 6;
+  SessionStatus status = 7;
+  google.protobuf.Timestamp started_at = 8;
+  optional google.protobuf.Timestamp ended_at = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreateSessionRequest {
+  string request_id = 1;
+  string user_id = 2;
+  string course_id = 3;
+  optional string resource_id = 4;
+  LaunchType launch_type = 5;
+}
+
+message CreateSessionResponse {
+  Session session = 1;
+}
+
+message GetSessionRequest {
+  string id = 1;
+}
+
+message GetSessionResponse {
+  Session session = 1;
+}
+
+message HeartbeatRequest {
+  string session_id = 1;
+}
+
+message HeartbeatResponse {
+  Session session = 1;
+}
+
+message EndSessionRequest {
+  string session_id = 1;
+}
+
+message EndSessionResponse {
+  Session session = 1;
+  int64 duration_seconds = 2;
+}
+
+message ListActiveSessionsRequest {
+  optional string course_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListActiveSessionsResponse {
+  repeated Session sessions = 1;
+  string next_page_token = 2;
+}
+
+service SessionService {
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+  rpc ListActiveSessions(ListActiveSessionsRequest) returns (ListActiveSessionsResponse);
+}

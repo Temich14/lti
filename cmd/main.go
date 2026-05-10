@@ -10,6 +10,7 @@ import (
 	http2 "LTICore/internal/infrastructure/http"
 	"LTICore/internal/infrastructure/metrics"
 	"LTICore/internal/infrastructure/repo"
+	"LTICore/internal/infrastructure/sessiongrpc"
 	"context"
 	"encoding/json"
 	"html/template"
@@ -101,6 +102,16 @@ func main() {
 	ltiService := service.NewLtiService(ltiClient, nrpsClient, platformRepo, loginSessionRepo, jwkPK, cfg, mtrcs)
 	dlService := service.NewDeepLinkingService(ltiService, cfg)
 
+	var eduSession service.EducationSessionCreator
+	if cfg.SessionService.Enabled && cfg.SessionService.GRPCTarget != "" {
+		edClient, err := sessiongrpc.New(cfg.SessionService.GRPCTarget)
+		if err != nil {
+			log.Fatal(err)
+		}
+		eduSession = edClient
+		logger.Info("education.session.grpc.enabled", "target", cfg.SessionService.GRPCTarget)
+	}
+
 	enrollRepo := enrollmentsync.NewRepository(pool)
 	enrollProducer := enrollmentsync.NewProducerService(
 		enrollRepo,
@@ -158,7 +169,8 @@ func main() {
 	}
 
 	authAdapter := http.NewAuthAdapter(ltiService)
-	launchAdapter := http.NewLaunchAdapter(ltiService, dlService, enrollProducer)
+	launchFlow := service.NewLaunchFlowService(logger, ltiService, dlService, enrollProducer, eduSession)
+	launchAdapter := http.NewLaunchAdapter(launchFlow)
 	jwkHandler := http.NewJWKSHandler(jwkservice)
 	agsHandler := http.NewAGSHandler(agsService)
 	dlHandler := http.NewDeepLinkingHandler(dlService)
